@@ -1,0 +1,1800 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard WebGIS Raja Ampat - Forest Sentinel-2</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Custom Modern Blue-Green Glassmorphism Styling -->
+    <style>
+        :root {
+            --primary: #10b981;
+            /* Emerald Green */
+            --primary-dark: #059669;
+            --accent: #0ea5e9;
+            /* Sky / Cyan Blue */
+            --accent-dark: #0284c7;
+
+            /* Blue-Green Glassmorphism Backdrop */
+            --bg-glass: linear-gradient(135deg, rgba(224, 242, 254, 0.72) 0%, rgba(209, 250, 229, 0.72) 100%);
+            --border-glass: rgba(255, 255, 255, 0.45);
+
+            --text-dark: #0f172a;
+            /* Slate 900 */
+            --text-muted: #334155;
+            /* Slate 700 */
+            --text-green: #065f46;
+            /* Dark Green */
+
+            --radius-lg: 20px;
+            --radius-md: 12px;
+
+            /* Gradients */
+            --gradient-primary: linear-gradient(135deg, #10b981 0%, #0ea5e9 100%);
+            --gradient-landing: linear-gradient(135deg, rgba(7, 30, 20, 0.76) 0%, rgba(1, 15, 25, 0.8) 100%);
+            --gradient-sidebar: linear-gradient(135deg, #065f46 0%, #0f172a 100%);
+
+            --shadow-lg: 0 10px 30px -5px rgba(0, 0, 0, 0.05), 0 8px 16px -6px rgba(16, 185, 129, 0.1);
+            --shadow-hover: 0 20px 40px -5px rgba(16, 185, 129, 0.15), 0 12px 20px -8px rgba(14, 165, 233, 0.15);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: var(--text-dark);
+            overflow: hidden;
+            background-color: #f8fafc;
+        }
+
+        /* 1. Fullscreen Modern Landing Page with 3D Canvas Overlay */
+        #landing-page {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9999;
+            background-image: var(--gradient-landing), url('./raja_ampat_bg.png');
+            background-size: cover;
+            background-position: center;
+            transition: opacity 1s cubic-bezier(0.4, 0, 0.2, 1), visibility 1s;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow: hidden;
+        }
+
+        #landing-page.fade-out {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        /* Transparent 3D Canvas Container */
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+            /* Let mouse clicks pass through to buttons/navbar */
+        }
+
+        /* Transparent Navbar */
+        .landing-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px 60px;
+            z-index: 10;
+            position: relative;
+        }
+
+        .landing-logo {
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px;
+            font-weight: 800;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .landing-logo i {
+            color: var(--primary);
+        }
+
+        .landing-nav {
+            display: flex;
+            gap: 32px;
+        }
+
+        .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            font-size: 14.5px;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .nav-link:hover {
+            color: var(--accent);
+        }
+
+        /* Center Content Landing */
+        .landing-content {
+            max-width: 900px;
+            margin: 0 auto;
+            text-align: center;
+            padding: 0 40px;
+            z-index: 10;
+            position: relative;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        .landing-content h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 38px;
+            font-weight: 800;
+            line-height: 1.3;
+            margin-bottom: 20px;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #ffffff, #93c5fd);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .landing-content p {
+            font-size: 16px;
+            color: #cbd5e1;
+            line-height: 1.6;
+            margin-bottom: 35px;
+            font-weight: 500;
+        }
+
+        .enter-btn-green {
+            padding: 16px 36px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+            color: #ffffff;
+            background: var(--primary);
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: var(--transition);
+        }
+
+        .enter-btn-green:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(5, 150, 105, 0.45);
+        }
+
+        /* Explore down marker */
+        .explore-down {
+            margin-top: 50px;
+            color: rgba(255, 255, 255, 0.6);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .explore-down:hover {
+            color: #ffffff;
+        }
+
+        .explore-down i.bounce {
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            20%,
+            50%,
+            80%,
+            100% {
+                transform: translateY(0);
+            }
+
+            40% {
+                transform: translateY(-8px);
+            }
+
+            60% {
+                transform: translateY(-4px);
+            }
+        }
+
+        /* Landing Footer */
+        .landing-footer {
+            text-align: center;
+            padding: 30px 40px;
+            z-index: 10;
+            position: relative;
+            font-size: 12px;
+            color: #94a3b8;
+            font-weight: 600;
+            line-height: 1.6;
+        }
+
+        /* 2. Custom Contact Modal (Glassmorphic) */
+        .custom-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10000;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .custom-modal.show {
+            display: flex;
+            opacity: 1;
+        }
+
+        .modal-card {
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            width: 400px;
+            padding: 24px;
+            color: var(--text-dark);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+            animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+            }
+
+            to {
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(16, 185, 129, 0.15);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-family: 'Outfit', sans-serif;
+            color: var(--text-green);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .close-modal-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+
+        .contact-info-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            font-size: 13.5px;
+            font-weight: 600;
+        }
+
+        .contact-info-row i {
+            color: var(--primary);
+            width: 16px;
+        }
+
+        /* 3. Full Screen Map Layout */
+        #map {
+            height: 100vh;
+            width: 100%;
+            z-index: 1;
+            background-color: #cbd5e1;
+        }
+
+        /* Floating Dashboard Sidebar (Blue-Green Glassmorphism) */
+        .sidebar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            bottom: 20px;
+            width: 440px;
+            z-index: 1000;
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-glass);
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            flex-direction: column;
+            transition: var(--transition);
+            transform: translateX(0);
+            overflow: hidden;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-480px);
+        }
+
+        /* Toggle Sidebar Button */
+        .sidebar-toggle {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1001;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--primary-dark);
+            font-size: 18px;
+            transition: var(--transition);
+        }
+
+        .sidebar-toggle:hover {
+            color: #ffffff;
+            background: var(--gradient-primary);
+            box-shadow: var(--shadow-hover);
+            transform: scale(1.05);
+        }
+
+        /* Header of Sidebar */
+        .sidebar-header {
+            padding: 20px 24px 16px 24px;
+            background: var(--gradient-sidebar);
+            color: #ffffff;
+            border-bottom: 2px solid var(--border-glass);
+        }
+
+        .sidebar-header h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 20px;
+            font-weight: 800;
+            margin: 0;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(to right, #ffffff, #e2f1fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .sidebar-header h1 i {
+            color: var(--primary);
+            -webkit-text-fill-color: initial;
+        }
+
+        /* Statistics cards (Three Cards at the top) */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            padding: 16px 24px 8px 24px;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: var(--radius-md);
+            padding: 10px 8px;
+            text-align: center;
+            box-shadow: 0 2px 6px rgba(16, 185, 129, 0.03);
+            transition: var(--transition);
+        }
+
+        .metric-card.m-accuracy {
+            border-top: 3.5px solid var(--primary);
+        }
+
+        .metric-card.m-netchange {
+            border-top: 3.5px solid var(--accent);
+        }
+
+        .metric-card.m-total {
+            border-top: 3.5px solid var(--text-muted);
+        }
+
+        .metric-card .title {
+            font-size: 9px;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .metric-card .value {
+            font-family: 'Outfit', sans-serif;
+            font-size: 14.5px;
+            font-weight: 800;
+            color: var(--text-dark);
+        }
+
+        /* Layer Control panel inside the left sidebar */
+        .layer-control-container {
+            padding: 12px 24px;
+            background: rgba(255, 255, 255, 0.35);
+            border-top: 1px solid rgba(16, 185, 129, 0.15);
+            border-bottom: 1px solid rgba(16, 185, 129, 0.15);
+        }
+
+        .layer-control-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--text-green);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0 0 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .layer-control-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 6px;
+        }
+
+        .layer-checkbox-item {
+            display: flex;
+            align-items: center;
+            font-size: 11.5px;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 6px;
+            transition: var(--transition);
+        }
+
+        .layer-checkbox-item:hover {
+            background: rgba(255, 255, 255, 0.6);
+            color: var(--text-dark);
+        }
+
+        .layer-checkbox-item input {
+            margin-right: 8px;
+            accent-color: var(--primary);
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+        }
+
+        .layer-bullet {
+            width: 8px;
+            height: 8px;
+            border-radius: 3px;
+            margin-left: auto;
+        }
+
+        .layer-bullet.outline {
+            border: 2px solid;
+            background: transparent !important;
+            border-radius: 50%;
+            width: 5px;
+            height: 5px;
+        }
+
+        /* Tabs Nav */
+        .tabs {
+            display: flex;
+            background: rgba(255, 255, 255, 0.45);
+            padding: 4px;
+            margin: 12px 24px 0 24px;
+            border-radius: var(--radius-md);
+            gap: 2px;
+            border: 1px solid rgba(16, 185, 129, 0.15);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 8px 2px;
+            font-size: 11px;
+            font-weight: 700;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: var(--transition);
+            text-align: center;
+        }
+
+        .tab-btn.active {
+            background: var(--gradient-primary);
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15);
+        }
+
+        /* Scrollable Contents */
+        .tab-content-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 24px;
+        }
+
+        .tab-pane {
+            display: none;
+            line-height: 1.6;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        .section-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            margin: 0 0 10px 0;
+            color: var(--text-green);
+            border-left: 3px solid var(--primary);
+            padding-left: 8px;
+        }
+
+        .desc-card {
+            background: rgba(255, 255, 255, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: var(--radius-md);
+            padding: 12px 14px;
+            margin-bottom: 14px;
+            font-size: 12.5px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.01);
+        }
+
+        .desc-card p {
+            margin: 0 0 8px 0;
+        }
+
+        .desc-card p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Styled Table */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11.5px;
+            margin-bottom: 15px;
+            background: rgba(255, 255, 255, 0.45);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+        }
+
+        .data-table th {
+            background: rgba(255, 255, 255, 0.65);
+            font-weight: 700;
+            color: var(--text-green);
+        }
+
+        .data-table tr:hover td {
+            background: rgba(255, 255, 255, 0.6);
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Charts */
+        .chart-container {
+            position: relative;
+            height: 170px;
+            width: 100%;
+            margin-bottom: 14px;
+            background: rgba(255, 255, 255, 0.45);
+            border-radius: var(--radius-md);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            padding: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.01);
+        }
+
+        /* Right Floating Automatic Legend Panel (Glassmorphic) */
+        .legend-panel {
+            position: absolute;
+            bottom: 30px;
+            right: 20px;
+            z-index: 1000;
+            width: 260px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-glass);
+            box-shadow: var(--shadow-lg);
+            padding: 14px;
+        }
+
+        .legend-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 12.5px;
+            font-weight: 800;
+            color: var(--text-green);
+            text-transform: uppercase;
+            border-bottom: 1px solid rgba(16, 185, 129, 0.15);
+            padding-bottom: 6px;
+            margin: 0 0 10px 0;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            gap: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-dark);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .legend-bullet {
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+            flex-shrink: 0;
+            box-shadow: 0 1.5px 3px rgba(16, 185, 129, 0.1);
+        }
+
+        .legend-bullet.outline {
+            border: 2px solid;
+            background: transparent !important;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        /* Popup Styled Content */
+        .popup-container {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            width: 220px;
+        }
+
+        .popup-header-block {
+            background: var(--gradient-primary);
+            color: #ffffff;
+            padding: 8px 12px;
+            margin: -15px -20px 10px -20px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 12.5px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .popup-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+
+        .popup-table td {
+            padding: 4px 0;
+            border-bottom: 1px dashed rgba(16, 185, 129, 0.12);
+        }
+
+        .popup-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .popup-table td:first-child {
+            font-weight: 700;
+            color: var(--text-muted);
+        }
+
+        .popup-table td:last-child {
+            text-align: right;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        /* Leaflet Popups override */
+        .leaflet-popup-content-wrapper {
+            background: var(--bg-glass) !important;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: var(--radius-md);
+            padding: 6px 12px;
+            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.08);
+            border: 1.5px solid var(--border-glass);
+        }
+
+        .leaflet-popup-tip {
+            background: rgba(224, 242, 254, 0.72) !important;
+        }
+
+        /* Floating Basemap Options (Right Top) (Glassmorphic) */
+        .basemap-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-glass);
+            padding: 6px;
+            display: flex;
+            gap: 4px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .basemap-btn {
+            padding: 6px 12px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-radius: 6px;
+            color: var(--text-muted);
+            transition: var(--transition);
+        }
+
+        .basemap-btn.active {
+            background: var(--gradient-primary);
+            color: #ffffff;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(16, 185, 129, 0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-dark);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- 1. FULLSCREEN LANDING PAGE WITH 3D PARTICLES -->
+    <div id="landing-page">
+        <!-- Transparent 3D Canvas -->
+        <div id="canvas-container"></div>
+
+        <!-- Navbar -->
+        <header class="landing-header">
+            <div class="landing-logo">
+                <i class="fa-solid fa-seedling"></i> Forest Sentinel-2
+            </div>
+            <nav class="landing-nav">
+                <a href="#" class="nav-link" onclick="showLanding(event)">Home</a>
+                <a href="#" class="nav-link" onclick="enterDashboard(event)">Dashboard</a>
+                <a href="#" class="nav-link" onclick="enterDashboardAndTab(event, 'overview')">Tentang Penelitian</a>
+                <a href="#" class="nav-link" onclick="enterDashboardAndTab(event, 'methodology')">Metadata</a>
+                <a href="#" class="nav-link" onclick="openContactModal(event)">Kontak</a>
+            </nav>
+        </header>
+
+        <!-- Center content -->
+        <div class="landing-content">
+            <h1>Analisis Perubahan Tutupan Vegetasi di Kabupaten Raja Ampat Tahun 2024–2025 Menggunakan Citra
+                Sentinel-2, Random Forest, dan WebGIS Interaktif</h1>
+            <p>
+                Platform WebGIS interaktif untuk memvisualisasikan hasil klasifikasi Random Forest, perubahan tutupan
+                vegetasi tahun 2024–2025, serta analisis spasial berbasis Google Earth Engine dan Sentinel-2.
+            </p>
+
+            <button onclick="enterDashboard()" class="enter-btn-green">
+                Masuk ke WebGIS <i class="fa-solid fa-circle-chevron-right"></i>
+            </button>
+
+            <div class="explore-down" onclick="enterDashboard()">
+                <span>Explore Spatial Analysis</span>
+                <i class="fa-solid fa-chevron-down bounce"></i>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="landing-footer">
+            <div>Universitas Pembangunan Nasional "Veteran" Yogyakarta</div>
+            <div>Program Studi Sistem Informasi</div>
+            <div>2026</div>
+        </footer>
+    </div>
+
+    <!-- 2. CUSTOM CONTACT MODAL -->
+    <div id="contactModal" class="custom-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-envelope"></i> Kontak Kami</h3>
+                <button onclick="closeContactModal()" class="close-modal-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Untuk pertanyaan dan diskusi lebih lanjut mengenai penelitian LULC Raja Ampat:</p>
+                <div class="contact-info-row" style="margin-top: 15px;">
+                    <i class="fa-solid fa-university"></i>
+                    <span>UPN "Veteran" Yogyakarta, Prodi Sistem Informasi</span>
+                </div>
+                <div class="contact-info-row">
+                    <i class="fa-solid fa-envelope"></i>
+                    <span>info@forest-sentinel.ac.id</span>
+                </div>
+                <div class="contact-info-row" style="margin-bottom: 20px;">
+                    <i class="fa-solid fa-location-dot"></i>
+                    <span>Kab. Sleman, D.I. Yogyakarta, Indonesia</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar Trigger (visible when sidebar is closed) -->
+    <button class="sidebar-toggle" id="sidebarToggle" title="Buka Panel Dashboard">
+        <i class="fa-solid fa-bars"></i>
+    </button>
+
+    <!-- 3. DASHBOARD SIDEBAR -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h1><i class="fa-solid fa-seedling"></i> Forest Sentinel-2</h1>
+                <button id="closeSidebar"
+                    style="background:none; border:none; cursor:pointer; color:#ffffff; font-size:18px;"
+                    title="Sembunyikan">
+                    <i class="fa-solid fa-angles-left"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Three Stat Cards -->
+        <div class="metrics-grid">
+            <div class="metric-card m-accuracy">
+                <div class="title">RF Accuracy</div>
+                <div class="value" id="statAccuracy">70.53%</div>
+            </div>
+            <div class="metric-card m-netchange">
+                <div class="title">Net Perubahan</div>
+                <div class="value" id="statNetChange">+357.0 km²</div>
+            </div>
+            <div class="metric-card m-total">
+                <div class="title">Total Luas</div>
+                <div class="value" id="statTotalArea">7,544.9 km²</div>
+            </div>
+        </div>
+
+        <!-- Layer Control Panel -->
+        <div class="layer-control-container">
+            <h4 class="layer-control-title"><i class="fa-solid fa-layer-group"></i> Kontrol Lapisan</h4>
+            <div class="layer-control-grid">
+                <label class="layer-checkbox-item">
+                    <input type="checkbox" id="chk2024" checked>
+                    <span>Tutupan Vegetasi 2024</span>
+                    <div class="layer-bullet" style="background: #10b981;"></div>
+                </label>
+                <label class="layer-checkbox-item">
+                    <input type="checkbox" id="chk2025" checked>
+                    <span>Tutupan Vegetasi 2025</span>
+                    <div class="layer-bullet" style="background: #059669;"></div>
+                </label>
+                <label class="layer-checkbox-item">
+                    <input type="checkbox" id="chkStabil" checked>
+                    <span>Vegetasi Stabil</span>
+                    <div class="layer-bullet outline" style="border-color: #065f46;"></div>
+                </label>
+                <label class="layer-checkbox-item">
+                    <input type="checkbox" id="chkGain" checked>
+                    <span>Vegetasi Baru (Gain)</span>
+                    <div class="layer-bullet outline" style="border-color: #0ea5e9;"></div>
+                </label>
+                <label class="layer-checkbox-item">
+                    <input type="checkbox" id="chkLoss" checked>
+                    <span>Vegetasi Hilang (Loss)</span>
+                    <div class="layer-bullet outline" style="border-color: #ef4444;"></div>
+                </label>
+                <label class="layer-checkbox-item">
+                    <input type="checkbox" id="chkNonVeg" checked>
+                    <span>Non Vegetasi Stabil</span>
+                    <div class="layer-bullet outline" style="border-color: #475569;"></div>
+                </label>
+                <label class="layer-checkbox-item">
+                    <input type="checkbox" id="chkAir" checked>
+                    <span>Air / Lainnya</span>
+                    <div class="layer-bullet outline" style="border-color: #cbd5e1;"></div>
+                </label>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="overview">Overview</button>
+            <button class="tab-btn" data-tab="cover-change">Cover Change</button>
+            <button class="tab-btn" data-tab="model-perf">Model RF</button>
+            <button class="tab-btn" data-tab="methodology">Sentinel-2</button>
+        </div>
+
+        <!-- Tab Content Container -->
+        <div class="tab-content-container">
+
+            <!-- OVERVIEW TAB -->
+            <div class="tab-pane active" id="overview">
+                <h3 class="section-title">Ringkasan Penelitian</h3>
+                <div class="desc-card">
+                    <p>Kabupaten Raja Ampat merupakan wilayah dengan kekayaan ekologis yang luar biasa. Penelitian ini
+                        bertujuan untuk memetakan perubahan tutupan vegetasi menggunakan satelit Sentinel-2 dan
+                        algoritma Machine Learning Random Forest. Pemodelan dilakukan di Google Earth Engine untuk
+                        menghasilkan data klasifikasi tutupan lahan tahun 2024 dan 2025 secara efisien dan akurat.</p>
+                </div>
+
+                <h3 class="section-title">Peta Hasil Klasifikasi</h3>
+                <div class="desc-card" style="background: rgba(16,185,129,0.06); border-color: var(--border-glass);">
+                    <p>Sebaran spasial menunjukkan vegetasi lebat mendominasi pulau-pulau besar (Waigeo, Salawati,
+                        Misool) sedangkan area pesisir karst mengalami suksesi vegetasi alami.</p>
+                </div>
+
+                <h3 class="section-title">Luas Vegetasi 2024 vs 2025</h3>
+                <div class="chart-container">
+                    <canvas id="overviewBarChart"></canvas>
+                </div>
+
+                <h3 class="section-title">Distribusi Kelas Tutupan Lahan 2025</h3>
+                <div class="chart-container">
+                    <canvas id="overviewPieChart"></canvas>
+                </div>
+
+                <h3 class="section-title">Evaluasi Random Forest & Perubahan</h3>
+                <div class="desc-card">
+                    <p>Model klasifikasi Random Forest menghasilkan akurasi yang solid dengan F1-Score sebesar 72.55%
+                        dan overall accuracy sebesar 70.53%.</p>
+                    <p>Pertumbuhan vegetasi baru (Gain) sebesar 1,265.96 km² melebihi kehilangan (Loss) sebesar 908.93
+                        km², menghasilkan peningkatan netto tutupan hijau di wilayah kepulauan.</p>
+                </div>
+            </div>
+
+            <!-- COVER CHANGE TAB -->
+            <div class="tab-pane" id="cover-change">
+                <h3 class="section-title">Komposisi Perubahan Vegetasi</h3>
+                <div class="chart-container" style="height: 190px;">
+                    <canvas id="coverChangeChart"></canvas>
+                </div>
+
+                <h3 class="section-title">Ringkasan Analisis Perubahan</h3>
+                <div class="desc-card" style="border-left: 4px solid var(--primary);">
+                    <p style="margin: 0; font-size: 12px; font-weight: 600;">Net Gain Vegetasi sebesar +357 km²,
+                        menunjukkan pertumbuhan vegetasi baru lebih besar dibandingkan kehilangan vegetasi sehingga
+                        secara keseluruhan terjadi peningkatan luas vegetasi di Kabupaten Raja Ampat selama periode
+                        2024–2025.</p>
+                </div>
+            </div>
+
+            <!-- MODEL RANDOM FOREST TAB -->
+            <div class="tab-pane" id="model-perf">
+                <h3 class="section-title">Matriks Evaluasi Model</h3>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Metrik Model</th>
+                            <th>Skor Evaluasi</th>
+                            <th>Interpretasi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Overall Accuracy</strong></td>
+                            <td style="font-weight:700; color:var(--primary-dark);">70.53%</td>
+                            <td>Proporsi prediksi yang benar.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Kappa Index</strong></td>
+                            <td style="font-weight:700;">41.38%</td>
+                            <td>Tingkat kesepakatan model terhadap data referensi.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Model Precision</strong></td>
+                            <td style="font-weight:700;">66.07%</td>
+                            <td>Ketepatan klasifikasi vegetasi.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Model Recall</strong></td>
+                            <td style="font-weight:700; color:var(--primary-dark);">80.43%</td>
+                            <td>Kemampuan mendeteksi seluruh area vegetasi.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>F1-Score</strong></td>
+                            <td style="font-weight:700; color:var(--accent-dark);">72.55%</td>
+                            <td>Keseimbangan antara Precision dan Recall.</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 class="section-title">Catatan Kinerja RF</h3>
+                <div class="desc-card">
+                    <p>Model Random Forest dievaluasi menggunakan data testing independen. Nilai recall yang tinggi
+                        menunjukkan model sensitif dalam mengenali tutupan vegetasi, sementara metrik Kappa berada pada
+                        tingkat kesepakatan moderat.</p>
+                </div>
+            </div>
+
+            <!-- SENTINEL-2 TAB -->
+            <div class="tab-pane" id="methodology">
+                <h3 class="section-title">Spesifikasi Citra & Metode</h3>
+                <div class="desc-card">
+                    <ul style="padding-left: 18px; margin: 0; font-size: 12px; color: var(--text-dark);">
+                        <li style="margin-bottom: 6px;"><strong>Dataset</strong>: Sentinel-2 Surface Reflectance (SR).
+                        </li>
+                        <li style="margin-bottom: 6px;"><strong>Tahun Pengamatan</strong>: 2024 dan 2025.</li>
+                        <li style="margin-bottom: 6px;"><strong>Resolusi Spasial</strong>: 10 meter.</li>
+                        <li style="margin-bottom: 6px;"><strong>Composite Median</strong>: Menggunakan filter tutupan
+                            awan <60% dan masking QA60.</li>
+                        <li style="margin-bottom: 6px;"><strong>Band Spektral</strong>: B2 (Blue), B3 (Green), B4 (Red),
+                            B8 (NIR).</li>
+                        <li style="margin-bottom: 6px;"><strong>Fitur Tambahan</strong>: Normalized Difference
+                            Vegetation Index (NDVI).</li>
+                    </ul>
+                </div>
+
+                <h3 class="section-title">Pratinjau Sentinel-2 Raja Ampat</h3>
+                <p style="font-size:11px; color:var(--text-muted); margin:-5px 0 10px 0;">Perbandingan visual citra
+                    satelit median composite tahun 2024 dan 2025:</p>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <div style="text-align: center;">
+                        <div style="font-weight: 700; font-size: 10px; margin-bottom: 4px; color: var(--text-green);">
+                            Composite 2024</div>
+                        <div style="border-radius: 8px; overflow: hidden; border: 1.5px solid var(--border-glass);">
+                            <img src="./raja_ampat_sat_2024.png"
+                                style="width:100%; display:block; aspect-ratio: 1.1; object-fit: cover;"
+                                alt="Sentinel 2024">
+                        </div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-weight: 700; font-size: 10px; margin-bottom: 4px; color: var(--text-green);">
+                            Composite 2025</div>
+                        <div style="border-radius: 8px; overflow: hidden; border: 1.5px solid var(--border-glass);">
+                            <img src="./raja_ampat_sat_2025.png"
+                                style="width:100%; display:block; aspect-ratio: 1.1; object-fit: cover;"
+                                alt="Sentinel 2025">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Basemap Selector Widget (Top Right) -->
+    <div class="basemap-panel">
+        <button class="basemap-btn active" data-map="positron">Minimalist</button>
+        <button class="basemap-btn" data-map="satellite">Satelit</button>
+        <button class="basemap-btn" data-map="osm">OSM</button>
+    </div>
+
+    <!-- Automatic Active Legend Panel (Right Bottom) -->
+    <div class="legend-panel">
+        <h4 class="legend-title"><i class="fa-solid fa-list-check"></i> Legenda Peta</h4>
+        <div id="contentLegend">
+            <!-- Populated dynamically via JS -->
+        </div>
+    </div>
+
+    <!-- Leaflet Map Container -->
+    <div id="map"></div>
+
+    <!-- Three.js CDN for 3D Landing Page -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Core interactive script -->
+    <script>
+        // --- 1. THREE.JS 3D WAVE TERRAIN INTERACTIVE OVERLAY ---
+        const canvasContainer = document.getElementById('canvas-container');
+        const landingPage = document.getElementById('landing-page');
+        const contactModal = document.getElementById('contactModal');
+
+        // Scene, Camera, Renderer Setup
+        const scene3D = new THREE.Scene();
+        const camera3D = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera3D.position.set(0, -45, 30);
+        camera3D.lookAt(0, 0, 0);
+
+        const renderer3D = new THREE.WebGLRenderer({ antialias: true, alpha: true }); // alpha: true enables transparent background
+        renderer3D.setSize(window.innerWidth, window.innerHeight);
+        renderer3D.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        canvasContainer.appendChild(renderer3D.domElement);
+
+        // Plane geometry with particle points
+        const gridGeom = new THREE.PlaneGeometry(140, 140, 48, 48);
+
+        const gridMat = new THREE.PointsMaterial({
+            size: 0.38,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.65
+        });
+
+        // Set Cyan-to-Emerald gradient colors for vertices
+        const vertColors = [];
+        const colorCyan = new THREE.Color('#0ea5e9'); // Cyan
+        const colorEmerald = new THREE.Color('#10b981'); // Emerald
+        const positions = gridGeom.attributes.position;
+
+        for (let i = 0; i < positions.count; i++) {
+            const y = positions.getY(i);
+            const factor = (y + 70) / 140; // Normalize y position from 0 to 1
+            const blendedColor = colorCyan.clone().lerp(colorEmerald, factor);
+            vertColors.push(blendedColor.r, blendedColor.g, blendedColor.b);
+        }
+        gridGeom.setAttribute('color', new THREE.Float32BufferAttribute(vertColors, 3));
+
+        const waveTerrain = new THREE.Points(gridGeom, gridMat);
+        scene3D.add(waveTerrain);
+
+        // Animation clock & mouse coordinates
+        let clockTime = 0;
+        let mouseX = 0;
+        let mouseY = 0;
+
+        window.addEventListener('mousemove', (e) => {
+            mouseX = (e.clientX - window.innerWidth / 2) / 75;
+            mouseY = (e.clientY - window.innerHeight / 2) / 75;
+        });
+
+        function animate3D() {
+            if (landingPage.style.display === 'none') return; // Stop animating when hidden
+
+            requestAnimationFrame(animate3D);
+
+            // Waving displacement logic
+            const posArray = gridGeom.attributes.position.array;
+            for (let i = 0; i < posArray.length; i += 3) {
+                const x = posArray[i];
+                const y = posArray[i + 1];
+
+                posArray[i + 2] = Math.sin((x + clockTime) * 0.08) * 3.5 +
+                    Math.cos((y + clockTime) * 0.08) * 3.5 +
+                    Math.sin((x + y + clockTime) * 0.04) * 2;
+            }
+            gridGeom.attributes.position.needsUpdate = true;
+            clockTime += 0.04;
+
+            // Camera movement reacts to mouse coordinates
+            camera3D.position.x += (mouseX - camera3D.position.x) * 0.05;
+            camera3D.position.y += (-mouseY - 45 - camera3D.position.y) * 0.05;
+            camera3D.lookAt(0, 5, 0);
+
+            renderer3D.render(scene3D, camera3D);
+        }
+        animate3D();
+
+        // Handle window resizing
+        window.addEventListener('resize', () => {
+            camera3D.aspect = window.innerWidth / window.innerHeight;
+            camera3D.updateProjectionMatrix();
+            renderer3D.setSize(window.innerWidth, window.innerHeight);
+        });
+
+
+        // --- 2. LANDING PAGE NAVIGATION CONTROLLERS ---
+        function enterDashboard(e) {
+            if (e) e.preventDefault();
+            landingPage.classList.add('fade-out');
+            setTimeout(() => {
+                landingPage.style.display = 'none';
+            }, 1000);
+        }
+
+        function showLanding(e) {
+            if (e) e.preventDefault();
+            landingPage.style.display = 'flex';
+            setTimeout(() => {
+                landingPage.classList.remove('fade-out');
+                animate3D(); // restart loop
+            }, 50);
+        }
+
+        function enterDashboardAndTab(e, tabId) {
+            if (e) e.preventDefault();
+            enterDashboard();
+
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            const tabPanes = document.querySelectorAll('.tab-pane');
+
+            tabBtns.forEach(b => b.classList.remove('active'));
+            tabPanes.forEach(p => p.classList.remove('active'));
+
+            const targetBtn = Array.from(tabBtns).find(b => b.getAttribute('data-tab') === tabId);
+            if (targetBtn) targetBtn.classList.add('active');
+
+            const targetPane = document.getElementById(tabId);
+            if (targetPane) targetPane.classList.add('active');
+        }
+
+        function openContactModal(e) {
+            if (e) e.preventDefault();
+            contactModal.classList.add('show');
+        }
+
+        function closeContactModal() {
+            contactModal.classList.remove('show');
+        }
+
+        window.addEventListener('click', (e) => {
+            if (e.target === contactModal) {
+                closeContactModal();
+            }
+        });
+
+
+        // --- 3. SET UP LEAFLET MAP ---
+        const basemaps = {
+            positron: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                subdomains: 'abcd',
+                maxZoom: 20
+            }),
+            satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+                maxZoom: 18
+            }),
+            osm: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19
+            })
+        };
+
+        const map = L.map('map', {
+            zoomControl: false,
+            layers: [basemaps.positron]
+        }).setView([-0.4, 130.6], 9);
+
+        // Add Zoom Control to the bottom left corner to avoid panel overlaps
+        L.control.zoom({
+            position: 'bottomleft'
+        }).addTo(map);
+
+        // Basemap selector click handlers
+        const basemapBtns = document.querySelectorAll('.basemap-btn');
+        basemapBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                basemapBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                const selectedMap = btn.getAttribute('data-map');
+                Object.values(basemaps).forEach(layer => {
+                    if (map.hasLayer(layer)) map.removeLayer(layer);
+                });
+                map.addLayer(basemaps[selectedMap]);
+            });
+        });
+
+        // Layer Groups
+        const boundaryLayerGroup = L.layerGroup().addTo(map);
+        const groundTruthLayerGroup = L.layerGroup().addTo(map);
+        const testingLayerGroup = L.layerGroup().addTo(map);
+
+        // Original GeoJSON data placeholders
+        let groundTruthData = null;
+        let testingData = null;
+
+        const boundaryStyle = {
+            color: "#10b981",
+            weight: 2.5,
+            opacity: 0.9,
+            dashArray: "3, 5",
+            fillColor: "#10b981",
+            fillOpacity: 0.03
+        };
+
+
+        // --- 4. INTERACTIVE SIDEBAR & TABS ---
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const closeSidebar = document.getElementById('closeSidebar');
+
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.remove('collapsed');
+            sidebarToggle.style.display = 'none';
+        });
+
+        closeSidebar.addEventListener('click', () => {
+            sidebar.classList.add('collapsed');
+            setTimeout(() => {
+                sidebarToggle.style.display = 'flex';
+            }, 300);
+        });
+
+        sidebarToggle.style.display = 'none'; // starts open
+
+        // Tab Switching
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabPanes = document.querySelectorAll('.tab-pane');
+
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                tabBtns.forEach(b => b.classList.remove('active'));
+                tabPanes.forEach(p => p.classList.remove('active'));
+
+                btn.classList.add('active');
+                const tabId = btn.getAttribute('data-tab');
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+
+
+        // --- 5. FETCH AND RENDER GEOJSON LAYERS ---
+
+        // Fetch Raja Ampat Boundary
+        fetch('./data/boundary.geojson')
+            .then(res => res.json())
+            .then(data => {
+                const geoJsonLayer = L.geoJSON(data, {
+                    style: boundaryStyle,
+                    interactive: false,
+                    onEachFeature: function (feature, layer) {
+                        const name = (feature.properties && feature.properties.ADM2_NAME)
+                            ? feature.properties.ADM2_NAME
+                            : 'Kabupaten Raja Ampat';
+
+                        let popup = `
+                            <div class="popup-container">
+                                <div class="popup-header-block"><i class="fa-solid fa-map"></i> Batas Wilayah</div>
+                                <table class="popup-table">
+                                    <tr><td>Kawasan</td><td>${name}</td></tr>
+                                    <tr><td>Provinsi</td><td>Papua Barat Daya</td></tr>
+                                </table>
+                            </div>
+                        `;
+                        layer.bindPopup(popup);
+                    }
+                }).addTo(boundaryLayerGroup);
+
+                map.fitBounds(geoJsonLayer.getBounds(), { padding: [50, 50] });
+            })
+            .catch(err => console.error('Error loading boundary GeoJSON:', err));
+
+        // Fetch Ground Truth samples
+        fetch('./data/ground_truth.geojson')
+            .then(res => res.json())
+            .then(data => {
+                groundTruthData = data;
+                updateMapLayers();
+            })
+            .catch(err => console.error('Error loading ground truth GeoJSON:', err));
+
+        // Fetch Testing Predictions
+        fetch('./data/testing_predictions.geojson')
+            .then(res => res.json())
+            .then(data => {
+                testingData = data;
+                updateMapLayers();
+            })
+            .catch(err => console.error('Error loading testing predictions GeoJSON:', err));
+
+
+        // --- 6. LAYER CONTROLLER & LEGEND & DYNAMIC STATS ---
+        const chk2024 = document.getElementById('chk2024');
+        const chk2025 = document.getElementById('chk2025');
+        const chkStabil = document.getElementById('chkStabil');
+        const chkGain = document.getElementById('chkGain');
+        const chkLoss = document.getElementById('chkLoss');
+        const chkNonVeg = document.getElementById('chkNonVeg');
+        const chkAir = document.getElementById('chkAir');
+
+        // Watch checkboxes
+        [chk2024, chk2025, chkStabil, chkGain, chkLoss, chkNonVeg, chkAir].forEach(chk => {
+            chk.addEventListener('change', updateMapLayers);
+        });
+
+        // Main filter/rendering coordinator
+        function updateMapLayers() {
+            groundTruthLayerGroup.clearLayers();
+            testingLayerGroup.clearLayers();
+
+            // 1. Render Tutupan Vegetasi 2024
+            if (chk2024.checked && groundTruthData) {
+                L.geoJSON(groundTruthData, {
+                    filter: f => f.properties.year === 2024 && f.properties.label === 'Vegetasi',
+                    pointToLayer: (f, latlng) => L.circleMarker(latlng, {
+                        radius: 6, fillColor: '#10b981', color: '#ffffff', weight: 1.5, opacity: 1, fillOpacity: 0.9
+                    }),
+                    onEachFeature: bindGroundTruthPopup
+                }).addTo(groundTruthLayerGroup);
+            }
+
+            // 2. Render Tutupan Vegetasi 2025
+            if (chk2025.checked && groundTruthData) {
+                L.geoJSON(groundTruthData, {
+                    filter: f => f.properties.year === 2025 && f.properties.label === 'Vegetasi',
+                    pointToLayer: (f, latlng) => L.circleMarker(latlng, {
+                        radius: 6, fillColor: '#059669', color: '#ffffff', weight: 1.5, opacity: 1, fillOpacity: 0.9
+                    }),
+                    onEachFeature: bindGroundTruthPopup
+                }).addTo(groundTruthLayerGroup);
+            }
+
+            // 3. Render Vegetasi Stabil (TP)
+            if (chkStabil.checked && testingData) {
+                L.geoJSON(testingData, {
+                    filter: f => f.properties.error_type === 'TP',
+                    pointToLayer: (f, latlng) => L.circleMarker(latlng, {
+                        radius: 6, fillColor: '#10b981', color: '#065f46', weight: 2, opacity: 1, fillOpacity: 0.7
+                    }),
+                    onEachFeature: bindTestingPopup
+                }).addTo(testingLayerGroup);
+            }
+
+            // 4. Render Vegetasi Baru (Gain) (FP)
+            if (chkGain.checked && testingData) {
+                L.geoJSON(testingData, {
+                    filter: f => f.properties.error_type === 'FP',
+                    pointToLayer: (f, latlng) => L.circleMarker(latlng, {
+                        radius: 6, fillColor: '#0ea5e9', color: '#0284c7', weight: 2, opacity: 1, fillOpacity: 0.7
+                    }),
+                    onEachFeature: bindTestingPopup
+                }).addTo(testingLayerGroup);
+            }
+
+            // 5. Render Vegetasi Hilang (Loss) (FN)
+            if (chkLoss.checked && testingData) {
+                L.geoJSON(testingData, {
+                    filter: f => f.properties.error_type === 'FN',
+                    pointToLayer: (f, latlng) => L.circleMarker(latlng, {
+                        radius: 6, fillColor: '#ef4444', color: '#991b1b', weight: 2, opacity: 1, fillOpacity: 0.7
+                    }),
+                    onEachFeature: bindTestingPopup
+                }).addTo(testingLayerGroup);
+            }
+
+            // 6. Render Non Vegetasi Stabil (TN)
+            if (chkNonVeg.checked && testingData) {
+                L.geoJSON(testingData, {
+                    filter: f => f.properties.error_type === 'TN',
+                    pointToLayer: (f, latlng) => L.circleMarker(latlng, {
+                        radius: 6, fillColor: '#475569', color: '#1e293b', weight: 2, opacity: 1, fillOpacity: 0.7
+                    }),
+                    onEachFeature: bindTestingPopup
+                }).addTo(testingLayerGroup);
+            }
+
+            // 7. Air / Lainnya
+            if (chkAir.checked && groundTruthData) {
+                L.geoJSON(groundTruthData, {
+                    filter: f => f.properties.label !== 'Vegetasi',
+                    pointToLayer: (f, latlng) => L.circleMarker(latlng, {
+                        radius: 6, fillColor: '#cbd5e1', color: '#64748b', weight: 1.5, opacity: 1, fillOpacity: 0.8
+                    }),
+                    onEachFeature: bindGroundTruthPopup
+                }).addTo(groundTruthLayerGroup);
+            }
+
+            updateLegend();
+            updateStats();
+        }
+
+        // Popup builders
+        function bindGroundTruthPopup(feature, layer) {
+            const p = feature.properties;
+            let popup = `
+                <div class="popup-container">
+                    <div class="popup-header-block"><i class="fa-solid fa-location-crosshairs"></i> Ground Truth</div>
+                    <table class="popup-table">
+                        <tr><td>Tahun</td><td>${p.year}</td></tr>
+                        <tr><td>Label Aktual</td><td><span style="color:var(--primary-dark); font-weight:700;">${p.label}</span></td></tr>
+                        <tr><td>ID Sampel</td><td>${p.id}</td></tr>
+                    </table>
+                </div>
+            `;
+            layer.bindPopup(popup);
+        }
+
+        function bindTestingPopup(feature, layer) {
+            const p = feature.properties;
+            const errMap = {
+                'TP': 'TP - True Positive (Benar Vegetasi)',
+                'TN': 'TN - True Negative (Benar Non-Vegetasi)',
+                'FP': 'FP - False Positive (Kesalahan Vegetasi)',
+                'FN': 'FN - False Negative (Kesalahan Non-Vegetasi)'
+            };
+            let popup = `
+                <div class="popup-container">
+                    <div class="popup-header-block"><i class="fa-solid fa-square-poll-vertical"></i> RF Testing</div>
+                    <table class="popup-table" style="margin-bottom:6px;">
+                        <tr><td>Kelas Aktual</td><td>${p.class === 1 ? 'Vegetasi' : 'Non-Vegetasi'}</td></tr>
+                        <tr><td>Prediksi Model</td><td>${p.classification === 1 ? 'Vegetasi' : 'Non-Vegetasi'}</td></tr>
+                        <tr><td>Status</td><td><span style="font-weight:700;">${errMap[p.error_type]}</span></td></tr>
+                    </table>
+                    <div style="font-size:9px; font-weight:700; color:var(--text-muted); border-top:1px dashed rgba(16,185,129,0.2); padding-top:4px; margin-bottom:2px; text-transform:uppercase;">Reflektansi Sentinel-2</div>
+                    <table class="popup-table">
+                        <tr><td>B4 (Red)</td><td>${p.B4.toFixed(4)}</td></tr>
+                        <tr><td>B8 (NIR)</td><td>${p.B8.toFixed(4)}</td></tr>
+                        <tr><td style="color:var(--primary-dark);">NDVI</td><td style="font-weight:700; color:var(--primary-dark);">${p.NDVI.toFixed(4)}</td></tr>
+                    </table>
+                </div>
+            `;
+            layer.bindPopup(popup);
+        }
+
+        // Automatic Legend Updater
+        function updateLegend() {
+            const legendContent = document.getElementById('contentLegend');
+            legendContent.innerHTML = '';
+
+            const items = [
+                { id: 'chk2024', name: 'Tutupan Vegetasi 2024', color: '#10b981', type: 'solid' },
+                { id: 'chk2025', name: 'Tutupan Vegetasi 2025', color: '#059669', type: 'solid' },
+                { id: 'chkStabil', name: 'Vegetasi Stabil', color: '#10b981', borderColor: '#065f46', type: 'outline' },
+                { id: 'chkGain', name: 'Vegetasi Baru (Gain)', color: '#0ea5e9', borderColor: '#0284c7', type: 'outline' },
+                { id: 'chkLoss', name: 'Vegetasi Hilang (Loss)', color: '#ef4444', borderColor: '#991b1b', type: 'outline' },
+                { id: 'chkNonVeg', name: 'Non Vegetasi Stabil', color: '#475569', borderColor: '#1e293b', type: 'outline' },
+                { id: 'chkAir', name: 'Air / Lainnya', color: '#cbd5e1', borderColor: '#64748b', type: 'outline' }
+            ];
+
+            let hasActive = false;
+            items.forEach(i => {
+                const checked = document.getElementById(i.id).checked;
+                if (checked) {
+                    hasActive = true;
+                    const item = document.createElement('div');
+                    item.className = 'legend-item';
+
+                    if (i.type === 'solid') {
+                        item.innerHTML = `<div class="legend-bullet" style="background: ${i.color};"></div><span>${i.name}</span>`;
+                    } else {
+                        item.innerHTML = `<div class="legend-bullet outline" style="border-color: ${i.borderColor};"></div><span>${i.name}</span>`;
+                    }
+                    legendContent.appendChild(item);
+                }
+            });
+
+            if (!hasActive) {
+                legendContent.innerHTML = '<div style="color:var(--text-muted); font-style:italic; font-size:11px;">Tidak ada lapisan aktif.</div>';
+            }
+        }
+
+        // Dynamic Statistics Card Updater
+        function updateStats() {
+            let accuracy = '70.53%';
+            let netChange = '+357.0 km²';
+            let totalArea = '7,544.9 km²';
+
+            const activeLayers = [
+                chk2024.checked, chk2025.checked, chkStabil.checked,
+                chkGain.checked, chkLoss.checked, chkNonVeg.checked, chkAir.checked
+            ];
+            const activeCount = activeLayers.filter(Boolean).length;
+
+            if (activeCount === 1) {
+                if (chk2024.checked) {
+                    accuracy = '70.53%';
+                    netChange = '0.0 km²';
+                } else if (chk2025.checked) {
+                    accuracy = '72.80%';
+                    netChange = '+357.0 km²';
+                } else if (chkStabil.checked) {
+                    accuracy = '80.43%';
+                    netChange = '1,731.3 km²';
+                } else if (chkGain.checked) {
+                    accuracy = '16.78%';
+                    netChange = '+1,266.0 km²';
+                } else if (chkLoss.checked) {
+                    accuracy = '12.05%';
+                    netChange = '-908.9 km²';
+                } else if (chkNonVeg.checked) {
+                    accuracy = '70.53%';
+                    netChange = '1,691.8 km²';
+                } else if (chkAir.checked) {
+                    accuracy = '---';
+                    netChange = '1,946.9 km²';
+                }
+            } else if (activeCount > 1) {
+                if (chkGain.checked && !chkLoss.checked) {
+                    netChange = '+1,266.0 km²';
+                } else if (chkLoss.checked && !chkGain.checked) {
+                    netChange = '-908.9 km²';
+                } else if (chkLoss.checked && chkGain.checked) {
+                    netChange = '+357.0 km²';
+                }
+            }
+
+            document.getElementById('statAccuracy').innerText = accuracy;
+            document.getElementById('statNetChange').innerText = netChange;
+            document.getElementById('statTotalArea').innerText = totalArea;
+        }
+
+
+        // --- 7. CHART.JS INITIALIZATION ---
+        window.addEventListener('load', () => {
+            // 1. Overview Bar Chart
+            const barCtx = document.getElementById('overviewBarChart').getContext('2d');
+            new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Tahun 2024', 'Tahun 2025'],
+                    datasets: [{
+                        label: 'Luas Vegetasi (km²)',
+                        data: [2997.23, 3354.26],
+                        backgroundColor: ['#10b981', '#059669'],
+                        borderRadius: 6,
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { font: { size: 9.5 } }
+                        },
+                        x: {
+                            ticks: { font: { size: 9.5, weight: 'bold' } }
+                        }
+                    }
+                }
+            });
+
+            // 2. Overview Pie Chart
+            const pieCtx = document.getElementById('overviewPieChart').getContext('2d');
+            new Chart(pieCtx, {
+                type: 'pie',
+                data: {
+                    labels: ['Vegetasi', 'Non-Vegetasi', 'Air / Lainnya'],
+                    datasets: [{
+                        data: [3354.26, 2243.71, 1946.93],
+                        backgroundColor: ['#10b981', '#475569', '#cbd5e1'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 10,
+                                font: { size: 9.5 }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 3. Cover Change Doughnut Chart
+            const changeCtx = document.getElementById('coverChangeChart').getContext('2d');
+            new Chart(changeCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Vegetasi Stabil', 'Vegetasi Baru (Gain)', 'Vegetasi Hilang (Loss)', 'Non-Veg Stabil', 'Air / Lainnya'],
+                    datasets: [{
+                        data: [1731.27, 1265.96, 908.93, 1691.81, 1946.93],
+                        backgroundColor: [
+                            '#10b981', // green
+                            '#0ea5e9', // blue
+                            '#ef4444', // red
+                            '#475569', // dark gray
+                            '#cbd5e1'  // light gray
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 8,
+                                padding: 6,
+                                font: { size: 9.5, weight: 600 }
+                            }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
