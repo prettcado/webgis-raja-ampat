@@ -1419,7 +1419,7 @@
         // --- 5. FETCH AND RENDER GEOJSON LAYERS ---
 
         // Fetch Raja Ampat Boundary
-        fetch('./data/boundary.geojson')
+        fetch('./RajaAmpat_Boundary.geojson')
             .then(res => res.json())
             .then(data => {
                 const geoJsonLayer = L.geoJSON(data, {
@@ -1448,7 +1448,7 @@
             .catch(err => console.error('Error loading boundary GeoJSON:', err));
 
         // Fetch Ground Truth samples
-        fetch('./data/ground_truth.geojson')
+        fetch('./04_GroundTruth_Clean.geojson')
             .then(res => res.json())
             .then(data => {
                 groundTruthData = data;
@@ -1457,7 +1457,7 @@
             .catch(err => console.error('Error loading ground truth GeoJSON:', err));
 
         // Fetch Testing Predictions
-        fetch('./data/testing_predictions.geojson')
+        fetch('./09_Testing_Predictions_GeoJSON.geojson')
             .then(res => res.json())
             .then(data => {
                 testingData = data;
